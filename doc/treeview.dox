@@ -26,7 +26,6 @@ namespace pinocchio {
         - \subpage md_doc_a-features_f-kinematic
         - \subpage md_doc_a-features_g-dynamic
         - \subpage md_doc_a-features_h-frames
-        - \subpage md_doc_a-features_i-geometric-models
         - \subpage md_doc_a-features_j-analytical-derivatives
         - \subpage md_doc_a-features_k-automatic-differentiation
         - \subpage md_doc_a-features_l-python
@@ -37,18 +36,9 @@ namespace pinocchio {
         - \subpage md_doc_b-examples_a-model
         - \subpage md_doc_b-examples_ab-geometry-models
         - \subpage md_doc_b-examples_b-display
-        - \subpage md_doc_b-examples_c-dynamics
-        - \subpage md_doc_b-examples_d-contact
-        - \subpage md_doc_b-examples_e-collisions
-        - \subpage md_doc_b-examples_f-derivatives
-        - \subpage md_doc_b-examples_g-code-generation
-        - \subpage md_doc_b-examples_h-inverse-geometry
-        - \subpage md_doc_b-examples_i-inverse-kinematics
-        - \subpage md_doc_b-examples_j-tsid
-        - \subpage md_doc_b-examples_k-qp
-        - \subpage md_doc_b-examples_l-postures
-        - \subpage md_doc_b-examples_m-rrt
-        - \subpage md_doc_b-examples_n-rl
+        - \subpage md_doc_b-examples_c-collisions
+        - \subpage md_doc_b-examples_d-inverse-kinematics
+        - \subpage md_doc_b-examples_e-reduced-model
   */
 
   /** \page md_doc_b-examples_b-display
@@ -77,21 +67,6 @@ namespace pinocchio {
        - \subpage md_doc_d-practical-exercises_5-planner
        - \subpage md_doc_d-practical-exercises_6-wpg
        - \subpage md_doc_d-practical-exercises_7-learn
-  */
-
-  /** \page md_doc_e-implementation_intro Implementation / Technical details
-        - \subpage md_doc_e-implementation_a-overview
-        - \subpage md_doc_e-implementation_b-sparsity
-        - \subpage md_doc_e-implementation_c-crtp
-        - \subpage md_doc_e-implementation_d-miscs
-  */
-
-  /** \page md_doc_f-benchmarks_intro Benchmarks
-        - \subpage md_doc_f-benchmarks_a-overview
-        - \subpage md_doc_f-benchmarks_b-howto
-  */
-
-  /** \page md_doc_g-success-stories_intro Success Stories
   */
 
   //
