@@ -3,21 +3,26 @@
 //
 
 #include "pinocchio/bindings/python/parsers/urdf.hpp"
+#include "pinocchio/bindings/python/parsers/sdf.hpp"
 #include "pinocchio/bindings/python/parsers/srdf.hpp"
-#include "pinocchio/bindings/python/parsers/sample-models.hpp"
+#include "pinocchio/bindings/python/parsers/mjcf.hpp"
+#include "pinocchio/bindings/python/parsers/model-graph.hpp"
 
 namespace pinocchio
 {
   namespace python
   {
-    
+
     void exposeParsers()
     {
+#if defined(PINOCCHIO_PYTHON_INTERFACE_MAIN_MODULE)
+      exposeSDFParser();
       exposeURDFParser();
       exposeSRDFParser();
-      exposeSampleModels();
+      exposeMJCFParser();
+#endif // if defined(PINOCCHIO_PYTHON_INTERFACE_MAIN_MODULE)
+      exposeGraph();
     }
-    
+
   } // namespace python
 } // namespace pinocchio
-

@@ -1,4 +1,4 @@
-# 4) Snap your fingers (aka direct and inverse dynamics)
+# 4) Snap your fingers (aka direct and inverse dynamics) {#md_doc_d-practical-exercises_4-dyn}
 
 ## Objectives
 
@@ -123,7 +123,7 @@ distance to a segment. Collision checking and distances are then easy to
 implement. The source code of collision checking is available in the
 [robot_hand.py](robot__hand_8py_source.html) file.
 Pinocchio also implement a complete and efficient
-collision checking based on FCL, also not used in the tutorial.
+collision checking based on coal, also not used in the tutorial.
 
 Collision checking are done for a set of collision pairs that must be
 specified to the robot. The collision checking method indeed compute the

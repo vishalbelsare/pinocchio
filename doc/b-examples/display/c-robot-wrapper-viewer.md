@@ -1,4 +1,4 @@
-# Display a model using RobotWrapper
+# Display a model using RobotWrapper {#md_doc_b-examples_display_c-robot-wrapper-viewer}
 
 `RobotWrapper` is a wrapper class written in Python holding Pinocchio models and data.
 It also includes wrapper functions for a few common methods.
@@ -6,4 +6,3 @@ It also includes wrapper functions for a few common methods.
 Below, you find an example on how to load a model with `RobotWrapper` and how to use it with a visualizer of your choice.
 
 \include robot-wrapper-viewer.py
-

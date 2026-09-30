@@ -1,4 +1,4 @@
-# 2) Grasp an object (aka inverse Geometry)
+# 2) Grasp an object (aka inverse Geometry) {#md_doc_d-practical-exercises_2-invgeom}
 
 ## Objectives
 
@@ -85,7 +85,7 @@ from a SciPy-like vector to a Pinocchio-like vector using:
 ```py
 import numpy as np
 x = np.array([1.0, 2.0, 3.0])
-q = np.matrix(x).T
+q = np.array(x)
 x = q.getA()[:, 0]
 ```
 
@@ -146,7 +146,7 @@ PKG = '/opt/openrobots/share'
 URDF = join(PKG, 'romeo_description/urdf/romeo.urdf')
 
 robot = RomeoWrapper(URDF, [PKG])  # Load urdf model
-robot.initDisplay(loadModel=True)
+robot.initViewer(loadModel=True)
 ```
 
 Additionally, the index of right
@@ -183,7 +183,7 @@ end effector at position `pdes`.
 Finally, implements a callback function that display in
 Gepetto-Viewer every candidate configuration tried by the solver.
 
-## 2.2) Approaching the redundancy (optionnal)
+## 2.2) Approaching the redundancy (optional)
 
 The manipulator arm has 6 DOF, while the cost function only constraints
 3 of them (the position of the end effector). A continuum of solutions
@@ -238,7 +238,7 @@ desired placement.
 Optionally, try other metrics, like the log metric of \f$R^3 \times SO(3)\f$, or
 the Froebenius norm of the homogeneous matrix.
 
-## 2.4) Working with a mobile robot (optionnal)
+## 2.4) Working with a mobile robot (optional)
 
 Until now, the tutorial only worked with a simple manipulator robot,
 i.e. whose configuration space is a real vector space. Consider now the

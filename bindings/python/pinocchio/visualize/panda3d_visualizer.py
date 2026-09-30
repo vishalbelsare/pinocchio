@@ -1,21 +1,25 @@
 import warnings
 
-from .. import pinocchio_pywrap as pin
+import numpy as np
+
+from .. import pinocchio_pywrap_default as pin
 from ..utils import npToTuple
 from .base_visualizer import BaseVisualizer
 
 try:
-    import hppfcl
-    WITH_HPP_FCL_BINDINGS = True
+    import coal
+
+    WITH_COAL = True
 except ImportError:
-    WITH_HPP_FCL_BINDINGS = False
+    WITH_COAL = False
+
 
 class Panda3dVisualizer(BaseVisualizer):
     """
     A Pinocchio display using panda3d engine.
     """
 
-    def initViewer(self, viewer=None, load_model=False): # pylint: disable=arguments-differ
+    def initViewer(self, viewer=None, load_model=False, open=True):  # pylint: disable=arguments-differ
         """Init the viewer by attaching to / creating a GUI viewer."""
         self.visual_group = None
         self.collision_group = None
@@ -24,13 +28,19 @@ class Panda3dVisualizer(BaseVisualizer):
         self.viewer = viewer
 
         from panda3d_viewer import Viewer as Panda3dViewer
+
         if viewer is None:
-            self.viewer = Panda3dViewer(window_title="python-pinocchio")
+            if not open:
+                self.viewer = Panda3dViewer(
+                    window_title="python-pinocchio", window_type="offscreen"
+                )
+            else:
+                self.viewer = Panda3dViewer(window_title="python-pinocchio")
 
         if load_model:
             self.loadViewerModel(group_name=self.model.name)
 
-    def loadViewerModel(self, group_name, color=None): # pylint: disable=arguments-differ
+    def loadViewerModel(self, group_name, color=None):  # pylint: disable=arguments-differ
         """Create a group of nodes displaying the robot meshes in the viewer."""
         self.visual_group = group_name + "/visuals"
         self.collision_group = group_name + "/collisions"
@@ -40,22 +50,21 @@ class Panda3dVisualizer(BaseVisualizer):
 
         def append(root, obj):
             geom = obj.geometry
-            if WITH_HPP_FCL_BINDINGS and isinstance(geom, hppfcl.ShapeBase):
+            if WITH_COAL and isinstance(geom, coal.ShapeBase):
                 # append a primitive geometry
-                if isinstance(geom, hppfcl.Capsule):
-                    r, l = geom.radius, 2 * geom.halfLength
-                    self.viewer.append_capsule(root, obj.name, r, l)
-                elif isinstance(geom, hppfcl.Cylinder):
-                    r, l = geom.radius, 2 * geom.halfLength
-                    self.viewer.append_cylinder(root, obj.name, r, l)
-                elif isinstance(geom, hppfcl.Box):
-                    size = npToTuple(2. * geom.halfSide)
+                if isinstance(geom, coal.Capsule):
+                    r, fl = geom.radius, 2 * geom.halfLength
+                    self.viewer.append_capsule(root, obj.name, r, fl)
+                elif isinstance(geom, coal.Cylinder):
+                    r, fl = geom.radius, 2 * geom.halfLength
+                    self.viewer.append_cylinder(root, obj.name, r, fl)
+                elif isinstance(geom, coal.Box):
+                    size = npToTuple(2.0 * geom.halfSide)
                     self.viewer.append_box(root, obj.name, size)
-                elif isinstance(geom, hppfcl.Sphere):
+                elif isinstance(geom, coal.Sphere):
                     self.viewer.append_sphere(root, obj.name, geom.radius)
                 else:
-                    msg = "Unsupported geometry type for %s (%s)" % (
-                        obj.name, type(geom))
+                    msg = f"Unsupported geometry type for {obj.name} ({type(geom)})"
                     warnings.warn(msg, category=UserWarning, stacklevel=2)
                     return
             else:
@@ -84,13 +93,16 @@ class Panda3dVisualizer(BaseVisualizer):
     def getViewerNodeName(self, geometry_object, geometry_type):
         """Return the name of the geometry object inside the viewer."""
         if geometry_type is pin.GeometryType.VISUAL:
-            return self.visual_group + '/' + geometry_object.name
+            return self.visual_group + "/" + geometry_object.name
         elif geometry_type is pin.GeometryType.COLLISION:
-            return self.collision_group + '/' + geometry_object.name
+            return self.collision_group + "/" + geometry_object.name
 
-    def display(self, q):
-        """Display the robot at configuration q in the viewer by placing all the bodies."""
-        pin.forwardKinematics(self.model, self.data, q)
+    def display(self, q=None):
+        """
+        Display the robot at configuration q in the viewer by placing all the bodies.
+        """
+        if q is not None:
+            pin.forwardKinematics(self.model, self.data, q)
 
         def move(group, model, data):
             pin.updateGeometryPlacements(self.model, self.data, model, data)
@@ -105,8 +117,7 @@ class Panda3dVisualizer(BaseVisualizer):
             move(self.visual_group, self.visual_model, self.visual_data)
 
         if self.display_collisions:
-            move(self.collision_group, self.collision_model,
-                 self.collision_data)
+            move(self.collision_group, self.collision_model, self.collision_data)
 
     def displayCollisions(self, visibility):
         """Set whether to display collision objects or not."""
@@ -117,5 +128,36 @@ class Panda3dVisualizer(BaseVisualizer):
         """Set whether to display visual objects or not."""
         self.viewer.show_group(self.visual_group, visibility)
         self.display_visuals = visibility
-        
-__all__ = ['Panda3dVisualizer']
+
+    def setBackgroundColor(self):
+        raise NotImplementedError()
+
+    def setCameraTarget(self, target):
+        raise NotImplementedError()
+
+    def setCameraPosition(self, position: np.ndarray):
+        raise NotImplementedError()
+
+    def setCameraZoom(self, zoom: float):
+        raise NotImplementedError()
+
+    def setCameraPose(self, pose: np.ndarray):
+        raise NotImplementedError()
+
+    def captureImage(self, w=None, h=None):
+        rgb = self.viewer.get_screenshot(requested_format="RGB")
+        if rgb is None:
+            raise RuntimeError("Failed to capture image from viewer")
+        return rgb
+
+    def disableCameraControl(self):
+        raise NotImplementedError()
+
+    def enableCameraControl(self):
+        raise NotImplementedError()
+
+    def drawFrameVelocities(self, *args, **kwargs):
+        raise NotImplementedError()
+
+
+__all__ = ["Panda3dVisualizer"]

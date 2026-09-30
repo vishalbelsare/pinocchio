@@ -1,37 +1,34 @@
 //
-// Copyright (c) 2015-2016 CNRS
+// Copyright (c) 2015-2021 CNRS INRIA
 //
 
 #include "pinocchio/bindings/python/fwd.hpp"
 #include "pinocchio/bindings/python/multibody/joint/joint-derived.hpp"
 #include "pinocchio/bindings/python/multibody/joint/joints-variant.hpp"
-#include "pinocchio/bindings/python/multibody/joint/joint.hpp"
+#include "pinocchio/bindings/python/multibody/joint/joint-model.hpp"
+#include "pinocchio/bindings/python/multibody/joint/joint-data.hpp"
 
-#include <boost/python/suite/indexing/vector_indexing_suite.hpp>
+#include "pinocchio/bindings/python/utils/std-vector.hpp"
 
 namespace pinocchio
 {
   namespace python
   {
-    
-    static void exposeVariants()
-    {
-      boost::mpl::for_each<JointModelVariant::types>(ModelExposer());
-      bp::to_python_converter<pinocchio::JointModelVariant,
-                              JointVariantVisitor<pinocchio::JointModelVariant > >();
 
-      boost::mpl::for_each<JointDataVariant::types>(DataExposer());
-      bp::to_python_converter<pinocchio::JointDataVariant,
-                              JointVariantVisitor<pinocchio::JointDataVariant > >();
-    }
-    
     void exposeJoints()
     {
-      exposeVariants();
-      JointModelPythonVisitor::expose();
-      bp::class_<JointModelVector>("StdVec_JointModelVector")
-      .def(bp::vector_indexing_suite<JointModelVector,true>());
+      typedef context::JointCollectionDefault::JointModelVariant JointModelVariant;
+      boost::mpl::for_each<JointModelVariant::types>(JointModelExposer());
+      bp::to_python_converter<JointModelVariant, JointVariantVisitor<JointModelVariant>>();
+      JointModelPythonVisitor<context::JointModel>::expose();
+      StdVectorPythonVisitor<std::vector<context::JointModel>>::expose("StdVec_JointModelVector");
+
+      typedef context::JointCollectionDefault::JointDataVariant JointDataVariant;
+      boost::mpl::for_each<JointDataVariant::types>(JointDataExposer());
+      bp::to_python_converter<JointDataVariant, JointVariantVisitor<JointDataVariant>>();
+      JointDataPythonVisitor<context::JointData>::expose();
+      StdVectorPythonVisitor<std::vector<context::JointData>>::expose("StdVec_JointDataVector");
     }
-    
+
   } // namespace python
 } // namespace pinocchio

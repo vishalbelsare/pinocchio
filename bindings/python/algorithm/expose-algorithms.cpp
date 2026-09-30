@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2015-2020 CNRS INRIA
+// Copyright (c) 2015-2022 CNRS INRIA
 //
 
 #include "pinocchio/bindings/python/algorithm/algorithms.hpp"
@@ -8,7 +8,7 @@ namespace pinocchio
 {
   namespace python
   {
-    
+
     void exposeAlgorithms()
     {
       exposeJointsAlgo();
@@ -20,13 +20,24 @@ namespace pinocchio
       exposeFramesAlgo();
       exposeEnergy();
       exposeKinematics();
-      exposeDynamics();
+
+      exposeContactJacobian();
+      exposeConstraintDynamics();
+      exposeConstraintDynamicsDerivatives();
+      exposeContactDynamics();
+      exposeLcaba();
+      exposeContactInverseDynamics();
+      exposeDelassus();
       exposeCAT();
       exposeJacobian();
+#if defined(PINOCCHIO_PYTHON_INTERFACE_MAIN_MODULE)
       exposeGeometryAlgo();
+#endif // defined(PINOCCHIO_PYTHON_INTERFACE_MAIN_MODULE)
+      exposeKinematicRegressor();
       exposeRegressor();
       exposeCholesky();
       exposeModelAlgo();
+      exposeImpulseDynamics();
 
       // expose derivative version of the algorithms
       exposeRNEADerivatives();
@@ -34,7 +45,12 @@ namespace pinocchio
       exposeKinematicsDerivatives();
       exposeFramesDerivatives();
       exposeCentroidalDerivatives();
+      exposeImpulseDynamicsDerivatives();
+
+      exposeCones();
+
+      exposeConstraintSolvers();
     }
-    
+
   } // namespace python
 } // namespace pinocchio

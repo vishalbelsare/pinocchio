@@ -1,22 +1,9 @@
-# Overview {#index}
+# Overview {#mainpage}
 <!--
 //
-// Copyright (c) 2016, 2018 CNRS
+// Copyright (c) 2016, 2018, 2026 CNRS
 // Author: Florent Lamiraux, Justin Carpentier, Guilhem Saurel
 //
-// This file is part of Pinocchio
-// Pinocchio is free software: you can redistribute it
-// and/or modify it under the terms of the GNU Lesser General Public
-// License as published by the Free Software Foundation, either version
-// 3 of the License, or (at your option) any later version.
-//
-// Pinocchio is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-// General Lesser Public License for more details. You should have
-// received a copy of the GNU Lesser General Public License along with
-// Pinocchio If not, see
-// <http://www.gnu.org/licenses/>.
 -->
 
 \section OverviewIntro What is Pinocchio?
@@ -35,11 +22,17 @@ In this doc, you will find the usual description of the library functionalities,
 
 \section OverviewInstall How to install Pinocchio?
 
-Pinocchio is best installed from APT packaging on Ubuntu 14.04, 16.04 and 18.04, from our repository.
-On Mac OS X, we support the installation of Pinocchio through the Homebrew package manager.
-If you just need the Python bindings, you can directly have access to them through Conda.
-On systems for which binaries are not provided, installation from source should be straightforward.
-Every release is validated in the main Linux distributions and Mac OS X.
+Pinocchio can be installed with different package managers:
+
+- apt: http://robotpkg.openrobots.org/debian.html on the 3 latest Debian & Ubuntu
+- AUR: https://aur.archlinux.org/packages/pinocchio
+- brew: https://formulae.brew.sh/formula/pinocchio
+- conan: https://github.com/conan-io/conan-center-index/tree/master/recipes/pinocchio (community contributed)
+- conda-forge: https://anaconda.org/channels/conda-forge/packages/pinocchio/overview
+- docker: https://github.com/stack-of-tasks/pinocchio/pkgs/container/pinocchio
+- nix: https://search.nixos.org/packages?channel=unstable&query=pinocchio#show=pinocchio
+- pip: https://pypi.org/project/pin/ beware of then name !!!
+- ros: https://index.ros.org/p/pinocchio/
 
 The full installation procedure can be found on the Github Pages of the project:
 http://stack-of-tasks.github.io/pinocchio/download.html.
@@ -65,21 +58,37 @@ We start with a simple program to compute the robot inverse dynamics. It is give
 
 \subsection OverviewSimpleCompile Compiling and running your program
 
-You can compile the C++ version by including Pinocchio and Eigen header directories.
+You can compile the C++ with this minimal CMakeLists.txt:
 
-\code g++ -I /path/to/eigen -I /path/to/pinocchio/include/ overview-simple.cpp -o overview-simple \endcode
+```{.cmake}
+cmake_minimum_required(VERSION 3.22)
 
-where `/path/to/pinocchio` is your chosen installation directory for Pinocchio.
-If you do not know Eigen's installation path, you can retrive it with `pkg-config --cflags eigen3`.
-On Linux, it will usually be something like `/usr/include/eigen3/`.
+project(overview CXX)
+
+find_package(pinocchio REQUIRED)
+
+add_executable(overview-simple overview-simple.cpp)
+target_link_libraries(overview-simple PUBLIC pinocchio::pinocchio)
+```
+
+Then run the following CMake command:
+
+```{.bash}
+cmake -B build
+cmake --build build
+```
 
 Once your code is compiled, you might then run it using
 
-\code ./overview-simple \endcode
+```{.bash}
+./build/overview-simple
+```
 
 In Python, just run it:
 
-\code python overview-simple.py \endcode
+```{.bash}
+python overview-simple.py
+```
 
 \subsection OverviewSimpleExplain Explanation of the program
 
@@ -136,19 +145,39 @@ in Python.
 
 \subsection OverviewComplexCompile Compiling and running your program
 
-This time, we must specify that URDFDOM is needed, as the model will be parsed from URDF.
-Also, we need to link to `liburdfdom_model` and to `libboost_system`.
+In similar way than the previous example, you simple need to do:
 
-\code g++ -I /path/to/eigen -I /path/to/pinocchio/include/ -DPINOCCHIO_URDFDOM_TYPEDEF_SHARED_PTR -DPINOCCHIO_WITH_URDFDOM overview-urdf.cpp -lboost_system -lurdfdom_model -o overview-urdf \endcode
+```{.cmake}
+cmake_minimum_required(VERSION 3.22)
+
+project(overview-urdf CXX)
+
+find_package(pinocchio REQUIRED)
+
+add_executable(overview-urdf overview-urdf.cpp)
+target_link_libraries(overview-urdf PUBLIC pinocchio::pinocchio)
+```
+
+Then run the following CMake command:
+
+```{.bash}
+cmake -B build
+cmake --build build
+```
 
 The program typically runs with a UR5 URDF description, that can be found for example in this repository https://github.com/humanoid-path-planner/ur_description
 
 Now you can launch the program:
-\code ./overview-urdf /path/to/ur5.urdf \endcode
+
+```{.bash}
+./build/overview-urdf /path/to/ur5.urdf
+```
 
 In Python, just run it:
 
-\code python overview-urdf.py /path/to/ur5.urdf \endcode
+```{.bash}
+python overview-urdf.py /path/to/ur5.urdf
+```
 
 \subsection OverviewComplexExplain Explanation of the program
 
@@ -191,21 +220,25 @@ If you want to refer to the new algorithms, without explicitley mentioning Pinoc
 
 \include carpentier-rss18.bib
 
+\section OverviewImplementation Implementation details
+
+Several design choices contribute to making the algorithm implementations in Pinocchio efficient.
+One of them is the curiously recurring template pattern (CRTP).
+Similarly to Eigen, Pinocchio library makes intensive use of the so called CRTP design
+pattern. This pattern is used for performance reasons in the
+implementation of static polymorphism, avoiding dynamic casts and calls to virtual methods.
+All in all, CRTP plays a central role in the performance of Pinocchio.
+
+We refer to  https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern for further explanations.
+
+Other factors that contribute to making Pinocchio efficient include proper
+handling of matrix sparsity, templatization, automatic differentiation and code
+generation. Check out the related papers above for more technical details.
 
 \section OverviewConclu Where to go from here?
 
-This documentation is mostly composed of several examples and tutorials for newcomers, along with a technical documentation and a reference guide. If you want to make sure Pinocchio matches your needs, you may first want to check the list of features. Several examples in C++ and Python will then directly give you the keys to implement the most classical applications based on a rigid-body library. For nonexperts, we also provide the main mathematical fundamentals, based on Featherstone's formulations (you may prefer to buy and read the original book if you never did). A long tutorial in Python contains everything you need if you are not a Python expert and want to start with Pinocchio. This tutorial was first written as course material for a Master class about robotics. 
+This documentation is mostly composed of several examples and tutorials for newcomers, along with a technical documentation and a reference guide. If you want to make sure Pinocchio matches your needs, you may first want to check the list of features. Several examples in C++ and Python will then directly give you the keys to implement the most classical applications based on a rigid-body library. For nonexperts, we also provide the main mathematical fundamentals, based on Featherstone's formulations (you may prefer to buy and read the original book if you never did). A long tutorial in Python contains everything you need if you are not a Python expert and want to start with Pinocchio. This tutorial was first written as course material for a Master class about robotics.
 
-That's it for beginners. We then give an overview of the technical choices we made to write the library and make it efficient. Read this section if you want to extend the C++ library core, in particular if you are not familiar with the curiously-recursive template pattern (used for example in Eigen). A description of the benchmarks we did to test the library efficiency is also provided. 
+That's it for beginners. We then give an overview of the technical choices we made to write the library and make it efficient. Read this section if you want to extend the C++ library core, in particular if you are not familiar with the curiously-recursive template pattern (used for example in Eigen). A description of the benchmarks we did to test the library efficiency is also provided.
 
 By the way, Pinocchio has been deeply inspired by <a href="http://http://eigen.tuxfamily.org/">Eigen</a> (hence the structure of this page and the title of this last section). The API of our library is Eigen-based. If you are not comfortable with Eigen and want to use Pinocchio in C++, you better have to follow the <a href="http://eigen.tuxfamily.org/dox/group__TutorialMatrixClass.html">basic Eigen tutorials</a> first.
-
-
-
-
-
-
-
-
-
-

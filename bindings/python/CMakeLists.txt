@@ -1,212 +1,425 @@
-# 
-# Copyright (c) 2015-2020 CNRS INRIA
+#
+# Copyright (c) 2015-2023 CNRS INRIA
 # Copyright (c) 2015 Wandercraft, 86 rue de Paris 91400 Orsay, France.
 #
 
-# --- MACROS --- #
-MACRO(SYMLINK_AND_INSTALL_HEADERS HEADERS SUBPATH)
-  FOREACH(header ${HEADERS})
-    GET_FILENAME_COMPONENT(headerName ${header} NAME)
-    GET_FILENAME_COMPONENT(headerPath ${header} PATH)
-    EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E ${LINK}
-      ${CMAKE_CURRENT_SOURCE_DIR}/${header}
-      ${${PROJECT_NAME}_BINARY_DIR}/include/${PROJECT_NAME}/${SUBPATH}/${header})
-
-    INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/${header}
-      DESTINATION ${CMAKE_INSTALL_PREFIX}/include/${PROJECT_NAME}/${SUBPATH}/${headerPath}
-            PERMISSIONS OWNER_READ GROUP_READ WORLD_READ OWNER_WRITE)
-  ENDFOREACH(header)
-ENDMACRO(SYMLINK_AND_INSTALL_HEADERS HEADERS SUBPATH)
-
-FUNCTION(REMOVE_PATH_FROM_LIST list_name path_name dest_list)
-  SET(list_name_)
-  FOREACH(header ${list_name})
-    STRING(REGEX REPLACE "${path_name}" "" header ${header}) 
-    LIST(APPEND list_name_ ${header})
-  ENDFOREACH(header ${list_name_})
-  SET(${dest_list} ${list_name_} PARENT_SCOPE)
-ENDFUNCTION(REMOVE_PATH_FROM_LIST)
+include(${JRL_CMAKE_MODULES}/python-helpers.cmake)
+include(${JRL_CMAKE_MODULES}/stubs.cmake)
 
 # --- PYTHON TARGET --- #
-SET(PYWRAP ${PROJECT_NAME}_pywrap)
-SET(PYWRAP ${PYWRAP} PARENT_SCOPE)
-
-FILE(GLOB_RECURSE ${PROJECT_NAME}_PYTHON_HEADERS
-     ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp 
-     ) 
-
-FILE(GLOB_RECURSE ${PROJECT_NAME}_PYTHON_SOURCES
-     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp 
-     ) 
-
-# Parser for Python model
-LIST(APPEND ${PROJECT_NAME}_PYTHON_HEADERS
-  parsers/python.hpp
-  )
-SET(${PROJECT_NAME}_PARSER_PYTHON_HEADERS
-  parsers/python.hpp
-  )
-
-LIST(APPEND ${PROJECT_NAME}_PYTHON_SOURCES
-  parsers/python/model.cpp
-  )
-
-REMOVE_PATH_FROM_LIST("${${PROJECT_NAME}_PYTHON_HEADERS}" "${CMAKE_CURRENT_SOURCE_DIR}/" ${PROJECT_NAME}_PYTHON_HEADERS)
-REMOVE_PATH_FROM_LIST("${${PROJECT_NAME}_PYTHON_SOURCES}" "${CMAKE_CURRENT_SOURCE_DIR}/" ${PROJECT_NAME}_PYTHON_SOURCES)
-
-# Python exposition of FCL
-IF(NOT BUILD_WITH_HPP_FCL_PYTHON_BINDINGS)
-  LIST(REMOVE_ITEM ${PROJECT_NAME}_PYTHON_HEADERS
-    multibody/fcl/transform.hpp
-    )
-  LIST(REMOVE_ITEM ${PROJECT_NAME}_PYTHON_SOURCES
-    multibody/fcl/expose-fcl.cpp
-    )
-ENDIF(NOT BUILD_WITH_HPP_FCL_PYTHON_BINDINGS)
-
-LIST(APPEND HEADERS ${${PROJECT_NAME}_PYTHON_HEADERS})
-
-# Headers of the Python bindings
-MAKE_DIRECTORY("${${PROJECT_NAME}_BINARY_DIR}/include/pinocchio/bindings/python")
-MAKE_DIRECTORY("${${PROJECT_NAME}_BINARY_DIR}/include/pinocchio/bindings/python/spatial")
-MAKE_DIRECTORY("${${PROJECT_NAME}_BINARY_DIR}/include/pinocchio/bindings/python/multibody")
-MAKE_DIRECTORY("${${PROJECT_NAME}_BINARY_DIR}/include/pinocchio/bindings/python/multibody/joint")
-IF(BUILD_WITH_HPP_FCL_PYTHON_BINDINGS)
-  MAKE_DIRECTORY("${${PROJECT_NAME}_BINARY_DIR}/include/pinocchio/bindings/python/multibody/fcl")
-ENDIF(BUILD_WITH_HPP_FCL_PYTHON_BINDINGS)
-MAKE_DIRECTORY("${${PROJECT_NAME}_BINARY_DIR}/include/pinocchio/bindings/python/parsers")
-MAKE_DIRECTORY("${${PROJECT_NAME}_BINARY_DIR}/include/pinocchio/bindings/python/serialization")
-MAKE_DIRECTORY("${${PROJECT_NAME}_BINARY_DIR}/include/pinocchio/bindings/python/algorithm")
-MAKE_DIRECTORY("${${PROJECT_NAME}_BINARY_DIR}/include/pinocchio/bindings/python/utils")
-SYMLINK_AND_INSTALL_HEADERS("${${PROJECT_NAME}_PYTHON_HEADERS}" "bindings/python")
-
-# Headers of the Python parser
-MAKE_DIRECTORY("${${PROJECT_NAME}_BINARY_DIR}/include/pinocchio/parsers/python")
-SYMLINK_AND_INSTALL_HEADERS("${${PROJECT_NAME}_PARSER_PYTHON_HEADERS}" "")
+set(PYWRAP ${PROJECT_NAME}_pywrap)
+set(PYWRAP ${PYWRAP} PARENT_SCOPE)
 
 # --- COMPILE WRAPPER
-MAKE_DIRECTORY("${${PROJECT_NAME}_BINARY_DIR}/bindings/python/${PROJECT_NAME}")
-SET(${PYWRAP}_SOURCES ${${PROJECT_NAME}_PYTHON_SOURCES})
-SET(${PYWRAP}_HEADERS ${${PROJECT_NAME}_PYTHON_HEADERS})
+make_directory("${${PROJECT_NAME}_BINARY_DIR}/bindings/python/${PROJECT_NAME}")
+set(${PYWRAP}_SOURCES ${${PROJECT_NAME}_BINDINGS_PYTHON_SOURCES})
+set(${PYWRAP}_HEADERS ${${PROJECT_NAME}_BINDINGS_PYTHON_PUBLIC_HEADERS})
 
-IF(BUILD_PYTHON_INTERFACE)
-  INCLUDE_DIRECTORIES(SYSTEM ${PYTHON_INCLUDE_DIRS}) 
-  ADD_CUSTOM_TARGET(python)
-  SET_TARGET_PROPERTIES(python PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD True)
+function(PINOCCHIO_PYTHON_BINDINGS_SPECIFIC_TYPE scalar_name)
+    set(scalar_name "${scalar_name}")
+    set(PYTHON_LIB_NAME "${PYWRAP}_${scalar_name}")
 
-  SET(PKG_CONFIG_PYWRAP_REQUIRES "eigenpy >= 2.2.0")
-  ADD_LIBRARY(${PYWRAP} SHARED ${${PYWRAP}_SOURCES} ${${PYWRAP}_HEADERS})
-  ADD_DEPENDENCIES(python ${PYWRAP})
-  
-  SET_TARGET_PROPERTIES(${PYWRAP} PROPERTIES PREFIX "") # Remove lib prefix for the target
-
-  # Do not report:
-  #  -Wconversion as the BOOST_PYTHON_FUNCTION_OVERLOADS implicitly converts.
-  #  -Wcomment as latex equations have multi-line comments.
-  TARGET_COMPILE_OPTIONS(${PYWRAP} PRIVATE -Wno-conversion -Wno-comment)
-
-  SET_TARGET_PROPERTIES(${PYWRAP} PROPERTIES VERSION ${PROJECT_VERSION})
-  IF(BUILD_WITH_COMMIT_VERSION)
-    TAG_LIBRARY_VERSION(${PYWRAP})
-  ENDIF(BUILD_WITH_COMMIT_VERSION)
-  ADD_HEADER_GROUP(${PYWRAP}_HEADERS)
-  ADD_SOURCE_GROUP(${PYWRAP}_SOURCES)
-
-  TARGET_LINK_LIBRARIES(${PYWRAP} PUBLIC ${PROJECT_NAME} eigenpy::eigenpy)
-  TARGET_LINK_BOOST_PYTHON(${PYWRAP} PUBLIC)
-  IF(BUILD_WITH_HPP_FCL_PYTHON_BINDINGS)
-    TARGET_COMPILE_DEFINITIONS(${PYWRAP} PRIVATE -DPINOCCHIO_WITH_HPP_FCL_PYTHON_BINDINGS)
-  ENDIF(BUILD_WITH_HPP_FCL_PYTHON_BINDINGS)
-  IF(WIN32)
-    TARGET_COMPILE_DEFINITIONS(${PYWRAP} PRIVATE -DNOMINMAX)
-    TARGET_LINK_LIBRARIES(${PYWRAP} PUBLIC ${PYTHON_LIBRARY})
-  ENDIF(WIN32)
-
-  IF(PINOCCHIO_SITELIB_ROOT)
-    SET(${PYWRAP}_INSTALL_DIR ${PINOCCHIO_SITELIB_ROOT}/${PYTHON_SITELIB}/${PROJECT_NAME})
-  ELSE()
-    SET(${PYWRAP}_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/${PYTHON_SITELIB}/${PROJECT_NAME})
-  ENDIF()
-
-  SET_TARGET_PROPERTIES(${PYWRAP}
-    PROPERTIES 
-    PREFIX ""
-    SUFFIX ${PYTHON_EXT_SUFFIX}
-    OUTPUT_NAME "${PYWRAP}"
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bindings/python/${PROJECT_NAME}"
+    string(TOUPPER ${scalar_name} upper_scalar_name)
+    set(EXTRA_SOURCES
+        ${${PROJECT_NAME}_BINDINGS_PYTHON_EXTRA_${upper_scalar_name}_SOURCES}
+    )
+    set(EXTRA_HEADERS
+        ${${PROJECT_NAME}_BINDINGS_PYTHON_EXTRA_${upper_scalar_name}_PUBLIC_HEADERS}
     )
 
-  INSTALL(
-    TARGETS ${PYWRAP} 
-    EXPORT ${TARGETS_EXPORT_NAME}
-    DESTINATION ${${PYWRAP}_INSTALL_DIR}
+    set(${PYTHON_LIB_NAME}_SOURCES ${${PYWRAP}_SOURCES} ${EXTRA_SOURCES})
+    set(${PYTHON_LIB_NAME}_HEADERS ${${PYWRAP}_HEADERS} ${EXTRA_HEADERS})
+
+    add_library(
+        ${PYTHON_LIB_NAME}
+        SHARED
+        ${${PYTHON_LIB_NAME}_SOURCES}
+        ${${PYTHON_LIB_NAME}_HEADERS}
     )
 
-  # --- INSTALL SCRIPTS 
-  SET(PYTHON_FILES
-    __init__.py
-    deprecated.py
-    deprecation.py
-    utils.py
-    robot_wrapper.py
-    romeo_wrapper.py
-    explog.py
-    shortcuts.py
+    # Links against accelerate
+    if(BUILD_WITH_ACCELERATE_SUPPORT)
+        # modernize_target_link_libraries(${PYTHON_LIB_NAME} SCOPE PUBLIC TARGETS Accelerate)
+        target_link_libraries(
+            ${PYTHON_LIB_NAME}
+            PRIVATE "-framework accelerate"
+        )
+    endif(BUILD_WITH_ACCELERATE_SUPPORT)
+
+    if(BUILD_WITH_OPENMP_SUPPORT)
+        # OpenMP is linked with pinocchio_parallel target
+        target_compile_definitions(
+            ${PYTHON_LIB_NAME}
+            PRIVATE -DPINOCCHIO_PYTHON_INTERFACE_WITH_OPENMP
+        )
+    endif()
+    add_dependencies(${PROJECT_NAME}-python ${PYTHON_LIB_NAME})
+
+    # Remove lib prefix for the target and use the right define for DLLAPI definition.
+    #
+    # Set inlined function visibility to hidden by default. This avoid bug on OSX where two symbol
+    # from two different binding (`pinocchio::python::exposeSpecificTypeFeatures`) can be wrongly
+    # loaded (see https://github.com/stack-of-tasks/pinocchio/issues/2462).
+    set_target_properties(
+        ${PYTHON_LIB_NAME}
+        PROPERTIES
+            PREFIX ""
+            DEFINE_SYMBOL "${PYWRAP}_EXPORTS"
+            CXX_VISIBILITY_PRESET hidden
+            VISIBILITY_INLINES_HIDDEN ON
     )
 
-  FOREACH(python ${PYTHON_FILES})
-    PYTHON_BUILD(${PROJECT_NAME} ${python})
-    INSTALL(FILES
-      "${${PROJECT_NAME}_SOURCE_DIR}/bindings/python/pinocchio/${python}"
-      DESTINATION ${${PYWRAP}_INSTALL_DIR})
-  ENDFOREACH(python)
+    # Do not report:
+    #
+    # * -Wconversion as the BOOST_PYTHON_FUNCTION_OVERLOADS implicitly converts.
+    # * -Wcomment as latex equations have multi-line comments.
+    # * -Wself-assign-overloaded as bp::self operations trigger this (Clang only).
+    # * -Xclang=-fno-pch-timestamp to allow ccache to use pch
+    #   (https://ccache.dev/manual/latest.html#_precompiled_headers).
+    cxx_flags_by_compiler_frontend(
+      GNU -Wno-conversion -Wno-comment -Wno-self-assign-overloaded -Xclang=-fno-pch-timestamp
+      MSVC -Xclang=-fno-pch-timestamp
+      OUTPUT PRIVATE_OPTIONS
+      FILTER
+    )
+    target_compile_options(${PYTHON_LIB_NAME} PRIVATE ${PRIVATE_OPTIONS})
 
-  # --- INSTALL VISUALIZATION SCRIPTS
-  SET(PYTHON_VISUALIZE_FILES
-    __init__.py
-    base_visualizer.py
-    gepetto_visualizer.py
-    meshcat_visualizer.py
-    panda3d_visualizer.py
+    set(PINOCCHIO_PYTHON_CONTEXT_FILE_VALUE
+        "pinocchio/bindings/python/context/${scalar_name}.hpp"
+    )
+    target_compile_definitions(
+        ${PYTHON_LIB_NAME}
+        PRIVATE
+            PINOCCHIO_PYTHON_CONTEXT_FILE="${PINOCCHIO_PYTHON_CONTEXT_FILE_VALUE}"
+            PINOCCHIO_PYTHON_MODULE_NAME=${PYTHON_LIB_NAME}
     )
 
-  FOREACH(python ${PYTHON_VISUALIZE_FILES})
-    PYTHON_BUILD(${PROJECT_NAME}/visualize ${python})
-    INSTALL(FILES
-      "${${PROJECT_NAME}_SOURCE_DIR}/bindings/python/pinocchio/visualize/${python}"
-      DESTINATION ${${PYWRAP}_INSTALL_DIR}/visualize)
-  ENDFOREACH(python)
+    set_target_properties(
+        ${PYTHON_LIB_NAME}
+        PROPERTIES VERSION ${PROJECT_VERSION}
+    )
+    if(BUILD_WITH_COMMIT_VERSION)
+        tag_library_version(${PYTHON_LIB_NAME})
+    endif(BUILD_WITH_COMMIT_VERSION)
+    add_header_group(${PYTHON_LIB_NAME}_HEADERS)
+    add_source_group(${PYTHON_LIB_NAME}_SOURCES)
 
-  # --- PACKAGING --- #
+    modernize_target_link_libraries(
+      ${PYTHON_LIB_NAME}
+      SCOPE PUBLIC
+      TARGETS eigenpy::eigenpy
+    )
+    target_link_libraries(
+        ${PYTHON_LIB_NAME}
+        PUBLIC ${PROJECT_NAME}::${PROJECT_NAME}
+    )
 
-  # Format string
-  SET(_PKG_CONFIG_PYWRAP_LIBDIR ${${PYWRAP}_INSTALL_DIR})
-  SET(_PKG_CONFIG_PYWRAP_BINDIR ${${PYWRAP}_INSTALL_DIR})
-  SET(_PKG_CONFIG_PYWRAP_CONFLICTS)
-  SET(_PKG_CONFIG_PYWRAP_REQUIRES "${PROJECT_NAME}")
-  FOREACH(dep ${PKG_CONFIG_PYWRAP_REQUIRES})
-    SET(_PKG_CONFIG_PYWRAP_REQUIRES "${_PKG_CONFIG_PYWRAP_REQUIRES}, ${dep}")
-  ENDFOREACH(dep ${PKG_CONFIG_PYWRAP_REQUIRES})
+    if(BUILD_WITH_URDF_SUPPORT)
+        # Link directly against console_bridge since we bind some enums and call
+        # console_bridge::setLogLevel function.
+        modernize_target_link_libraries(
+          ${PYTHON_LIB_NAME}
+          SCOPE PUBLIC
+          TARGETS console_bridge::console_bridge
+          LIBRARIES ${console_bridge_LIBRARIES}
+          INCLUDE_DIRS ${console_bridge_INCLUDE_DIRS}
+        )
+    endif()
+    if(BUILD_WITH_COLLISION_SUPPORT)
+        target_compile_definitions(
+            ${PYTHON_LIB_NAME}
+            PRIVATE PINOCCHIO_PYTHON_INTERFACE_WITH_COLLISION_PYTHON_BINDINGS
+        )
+    endif()
+    if(WIN32)
+        target_link_libraries(${PYTHON_LIB_NAME} PUBLIC ${PYTHON_LIBRARY})
+    endif()
 
-  SET(_PKG_CONFIG_PYWRAP_LIBS "-L\${libdir} -l${PYWRAP}")
-  IF(APPLE)
-    SET(_PKG_CONFIG_PYWRAP_LIBS "${_PKG_CONFIG_PYWRAP_LIBS} -Wl,-undefined,dynamic_lookup,${Boost_${UPPERCOMPONENT}_LIBRARY}")
-  ELSE(APPLE)
-    SET(_PKG_CONFIG_PYWRAP_LIBS "${_PKG_CONFIG_PYWRAP_LIBS} ${LIBINCL_KW}boost_python")
-  ENDIF(APPLE)
+    set(${PYWRAP}_INSTALL_DIR ${ABSOLUTE_PYTHON_SITELIB}/${PROJECT_NAME})
 
-  SET(_PKG_CONFIG_PYWRAP_CFLAGS "-I\${includedir} -I/usr/local/include")
-  SET(_PKG_CONFIG_PYWRAP_CFLAGS "${_PKG_CONFIG_PYWRAP_CFLAGS} -I${PYTHON_INCLUDE_DIRS}")
-  FOREACH(cflags ${CFLAGS_DEPENDENCIES})
-    SET(_PKG_CONFIG_PYWRAP_CFLAGS "${_PKG_CONFIG_PYWRAP_CFLAGS} ${cflags}")
-  ENDFOREACH(cflags ${CFLAGS_DEPENDENCIES})
+    set_target_properties(
+        ${PYTHON_LIB_NAME}
+        PROPERTIES
+            PREFIX ""
+            SUFFIX ${PYTHON_EXT_SUFFIX}
+            OUTPUT_NAME "${PYTHON_LIB_NAME}"
+            LIBRARY_OUTPUT_DIRECTORY
+                "${PROJECT_BINARY_DIR}/bindings/python/${PROJECT_NAME}"
+            # On Windows, shared library are treat as binary
+            RUNTIME_OUTPUT_DIRECTORY
+                "${PROJECT_BINARY_DIR}/bindings/python/${PROJECT_NAME}"
+    )
 
-  CONFIGURE_FILE(
-     "${CMAKE_CURRENT_SOURCE_DIR}/pinocchiopy.pc.cmake"
-     "${CMAKE_CURRENT_BINARY_DIR}/pinocchiopy.pc")
+    if(UNIX)
+        get_relative_rpath(${${PYWRAP}_INSTALL_DIR} ${PYWRAP}_INSTALL_RPATH)
+        set_target_properties(
+            ${PYTHON_LIB_NAME}
+            PROPERTIES INSTALL_RPATH "${${PYWRAP}_INSTALL_RPATH}"
+        )
+    endif()
 
-  INSTALL(
-      FILES "${CMAKE_CURRENT_BINARY_DIR}/pinocchiopy.pc"
-      DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
-      PERMISSIONS OWNER_READ GROUP_READ WORLD_READ OWNER_WRITE)
-ENDIF(BUILD_PYTHON_INTERFACE)
+    install(
+        TARGETS ${PYTHON_LIB_NAME}
+        EXPORT ${TARGETS_EXPORT_NAME}
+        DESTINATION ${PINOCCHIO_PYTHON_INSTALL_DIR}
+    )
+endfunction()
+
+function(INSTALL_PYTHON_FILES)
+    set(options)
+    set(oneValueArgs MODULE)
+    set(multiValueArgs FILES)
+    cmake_parse_arguments(
+        ARGS
+        "${options}"
+        "${oneValueArgs}"
+        "${multiValueArgs}"
+        ${ARGN}
+    )
+
+    set(SOURCE_PATH ${PROJECT_NAME})
+    set(INSTALL_PATH ${PINOCCHIO_PYTHON_INSTALL_DIR})
+    if(ARGS_MODULE)
+        set(SOURCE_PATH ${SOURCE_PATH}/${ARGS_MODULE})
+        set(INSTALL_PATH ${INSTALL_PATH}/${ARGS_MODULE})
+    endif()
+
+    foreach(f ${ARGS_FILES})
+        python_build(${SOURCE_PATH} ${f})
+        install(FILES ${SOURCE_PATH}/${f} DESTINATION ${INSTALL_PATH})
+    endforeach()
+endfunction()
+
+if(BUILD_PYTHON_INTERFACE)
+    add_custom_target(${PROJECT_NAME}-python)
+    set_target_properties(
+        ${PROJECT_NAME}-python
+        PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD True
+    )
+
+    python_build_get_target(python_build_target)
+    add_dependencies(${PROJECT_NAME}-python ${python_build_target})
+
+    if(IS_ABSOLUTE ${PYTHON_SITELIB})
+        set(ABSOLUTE_PYTHON_SITELIB ${PYTHON_SITELIB})
+    else()
+        set(ABSOLUTE_PYTHON_SITELIB ${CMAKE_INSTALL_PREFIX}/${PYTHON_SITELIB})
+    endif()
+    set(PINOCCHIO_PYTHON_INSTALL_DIR ${ABSOLUTE_PYTHON_SITELIB}/${PROJECT_NAME})
+
+    pinocchio_python_bindings_specific_type(default)
+    # Precompiled headers are used to speed up compilation of the Python bindings. We have also tested
+    # precompiling headers for the main library's `pinocchio_default` target, but the time gain there
+    # was negligible compared to the time gained in the Python bindings. We also precompile headers
+    # for other scalar types as well.
+    if(PINOCCHIO_BUILD_BINDING_WITH_PCH)
+        target_precompile_headers(
+            ${PYWRAP}_default
+            PRIVATE
+                ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/pch.hpp
+        )
+    endif()
+    set(PYTHON_LIB_NAME "${PYWRAP}_default")
+    set(STUBGEN_DEPENDENCIES "${PYWRAP}_default")
+
+    if(BUILD_PYTHON_BINDINGS_WITH_FLOAT32_SUPPORT)
+        pinocchio_python_bindings_specific_type(float32)
+        list(APPEND STUBGEN_DEPENDENCIES "${PYWRAP}_float32")
+
+        if(PINOCCHIO_BUILD_BINDING_WITH_PCH)
+            target_precompile_headers(
+                ${PYWRAP}_float32
+                PRIVATE
+                    ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/pch.hpp
+            )
+        endif()
+
+        # --- INSTALL SCRIPTS
+        install_python_files(MODULE float32 FILES __init__.py explog.py utils.py)
+    endif()
+
+    if(BUILD_WITH_AUTODIFF_SUPPORT)
+        pinocchio_python_bindings_specific_type(cppad cppad)
+        # CPPAD_DEBUG_AND_RELEASE allow to mix debug and release versions of CppAD in the same program.
+        # This can happen when Pinocchio is build in Debug mode and pycppad is build in Release mode.
+        # See
+        # https://coin-or.github.io/CppAD/doc/preprocessor.htm#Documented%20Here.CPPAD_DEBUG_AND_RELEASE.
+        target_compile_definitions(
+            ${PYWRAP}_cppad
+            PRIVATE
+                PYCPPAD_EXCLUDE_EIGEN_NUMTRAITS_SPECIALIZATION
+                CPPAD_DEBUG_AND_RELEASE
+        )
+        target_include_directories(
+            ${PYWRAP}_cppad
+            SYSTEM
+            PUBLIC $<BUILD_INTERFACE:${cppad_INCLUDE_DIR}>
+        )
+        target_link_libraries(${PYWRAP}_cppad PUBLIC ${cppad_LIBRARY})
+        list(APPEND STUBGEN_DEPENDENCIES "${PYWRAP}_cppad")
+
+        if(PINOCCHIO_BUILD_BINDING_WITH_PCH)
+            target_precompile_headers(
+                ${PYWRAP}_cppad
+                PRIVATE
+                    ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/pch.hpp
+                    <cppad/cppad.hpp>
+                    <boost/mpl/int.hpp>
+            )
+        endif()
+
+        # --- INSTALL SCRIPTS
+        install_python_files(MODULE cppad FILES __init__.py)
+    endif(BUILD_WITH_AUTODIFF_SUPPORT)
+
+    if(BUILD_WITH_CODEGEN_SUPPORT)
+        pinocchio_python_bindings_specific_type(cppadcg cppadcg)
+
+        # On osx, use default visiblitiy because of an issue with thread_local storage defined in
+        # cppad/cg/cg.hpp header (see
+        # https://github.com/stack-of-tasks/pinocchio/pull/2469#issuecomment-2461845127)
+        if(APPLE)
+            set_target_properties(
+                ${PYWRAP}_cppadcg
+                PROPERTIES CXX_VISIBILITY_PRESET default
+            )
+        endif()
+
+        # CPPAD_DEBUG_AND_RELEASE allow to mix debug and release versions of CppAD in the same program.
+        target_compile_definitions(
+            ${PYWRAP}_cppadcg
+            PRIVATE
+                PYCPPAD_EXCLUDE_EIGEN_NUMTRAITS_SPECIALIZATION
+                CPPAD_DEBUG_AND_RELEASE
+        )
+        target_include_directories(
+            ${PYWRAP}_cppadcg
+            SYSTEM
+            PUBLIC $<BUILD_INTERFACE:${cppadcg_INCLUDE_DIR}>
+        )
+        target_link_libraries(
+            ${PYWRAP}_cppadcg
+            PUBLIC ${cppadcg_LIBRARY} ${cppad_LIBRARY}
+        )
+        list(APPEND STUBGEN_DEPENDENCIES "${PYWRAP}_cppadcg")
+
+        if(PINOCCHIO_BUILD_BINDING_WITH_PCH)
+            target_precompile_headers(
+                ${PYWRAP}_cppadcg
+                PRIVATE
+                    ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/pch.hpp
+                    <cmath>
+                    <boost/mpl/int.hpp>
+                    <cppad/cg/support/cppadcg_eigen.hpp>
+            )
+        endif()
+
+        # --- INSTALL SCRIPTS
+        install_python_files(MODULE cppadcg FILES __init__.py)
+    endif(BUILD_WITH_CODEGEN_SUPPORT)
+
+    if(BUILD_WITH_CASADI_SUPPORT)
+        pinocchio_python_bindings_specific_type(casadi)
+        target_link_libraries(${PYWRAP}_casadi PUBLIC casadi::casadi)
+        list(APPEND STUBGEN_DEPENDENCIES "${PYWRAP}_casadi")
+
+        if(PINOCCHIO_BUILD_BINDING_WITH_PCH)
+            target_precompile_headers(
+                ${PYWRAP}_casadi
+                PRIVATE
+                    ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/pch.hpp
+                    <casadi/casadi.hpp>
+                    <casadi/core/casadi_types.hpp>
+                    <casadi/core/code_generator.hpp>
+            )
+        endif()
+
+        # --- INSTALL SCRIPTS
+        install_python_files(MODULE casadi FILES __init__.py)
+    endif(BUILD_WITH_CASADI_SUPPORT)
+
+    if(BUILD_PYTHON_BINDINGS_WITH_BOOST_MPFR_SUPPORT)
+        pinocchio_python_bindings_specific_type(mpfr)
+
+        target_link_libraries(${PYWRAP}_mpfr PRIVATE gmp mpfr)
+        list(APPEND STUBGEN_DEPENDENCIES "${PYWRAP}_mpfr")
+
+        if(PINOCCHIO_BUILD_BINDING_WITH_PCH)
+            target_precompile_headers(
+                ${PYWRAP}_mpfr
+                PRIVATE
+                    ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/pch.hpp
+                    <boost/multiprecision/mpfr.hpp>
+            )
+        endif()
+
+        # --- INSTALL SCRIPTS
+        install_python_files(MODULE mpfr FILES __init__.py)
+    endif()
+
+    # --- INSTALL SCRIPTS
+    install_python_files(
+      FILES __init__.py
+            deprecated.py
+            deprecation.py
+            utils.py
+            robot_wrapper.py
+            romeo_wrapper.py
+            explog.py
+            shortcuts.py
+            windows_dll_manager.py
+    )
+
+    # --- INSTALL DERIVATIVE SCRIPTS
+    install_python_files(MODULE derivative FILES xm.py dcrba.py lambdas.py)
+
+    # --- INSTALL VISUALIZATION SCRIPTS
+    install_python_files(
+      MODULE visualize
+      FILES __init__.py
+            base_visualizer.py
+            gepetto_visualizer.py
+            meshcat_visualizer.py
+            panda3d_visualizer.py
+            rviz_visualizer.py
+            viser_visualizer.py
+            visualizers.py
+    )
+
+    # --- STUBS --- #
+    if(GENERATE_PYTHON_STUBS)
+        python_build_get_target(python_build_target_name)
+        load_stubgen()
+        # Set PYWRAP and PROJECT_NAME as stubs dependencies.
+        #
+        # PROJECT_NAME is mandatory (even if it's a PYWRAP dependency) to find PROJECT_NAME name DLL on
+        # windows.
+        generate_stubs(
+          ${CMAKE_CURRENT_BINARY_DIR}
+          ${PROJECT_NAME}
+          ${ABSOLUTE_PYTHON_SITELIB}
+          ${PYWRAP}_default
+          ${PROJECT_NAME}::${PROJECT_NAME}_default
+          ${STUBGEN_DEPENDENCIES}
+          ${python_build_target_name}
+        )
+    endif(GENERATE_PYTHON_STUBS)
+
+    # --- PACKAGING --- #
+
+    if(DOXYGEN_FOUND AND DOXYGEN_VERSION VERSION_GREATER 1.8.17)
+        set(DOXYGEN_GENERATE_HTML YES)
+        set(DOXYGEN_GENERATE_LATEX NO)
+        set(DOXYGEN_PROJECT_NAME "Pinocchio PyBind11 helpers.")
+        set(_source_headers_root
+            "../../include/${PROJECT_NAME}/bindings/python"
+        )
+        doxygen_add_docs(
+            doc_pybind11
+            ${_source_headers_root}/pybind11.hpp
+            ${_source_headers_root}/pybind11-all.hpp
+            USE_STAMP_FILE
+            COMMENT "Generating documentation of the PyBind11 helpers."
+        )
+    endif()
+endif(BUILD_PYTHON_INTERFACE)

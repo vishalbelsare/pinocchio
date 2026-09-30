@@ -1,4 +1,4 @@
-# 5) look ahead (aka motion planning)
+# 5) Look ahead (aka motion planning) {#md_doc_d-practical-exercises_5-planner}
 
 ## Objective
 
@@ -16,8 +16,8 @@ like a UR5 manipulator robot. See Lab 1 for loading the UR5 robot.
 A collision checking library, provided by Pinocchio.
 
 Pinocchio provides collision checking for a large class of 3D objects
-(sphere, capsule, box, triangle soup) using library FCL. Any 3D object
-of FCL can be loaded using the C++ interface or the URDF model.
+(sphere, capsule, box, triangle soup) using library coal. Any 3D object
+of coal can be loaded using the C++ interface or the URDF model.
 Although, only capsules can yet be added through the Python API, and
 only URDF-loaded meshes and Python-loaded capsules can be easily
 connected with Gepetto viewer (help is welcome to correct this, it would
@@ -29,7 +29,7 @@ below:
 obs = se3.GeometryObject.CreateCapsule(rad, length)  # Pinocchio obstacle object
 obs.name = "obs"                                     # Set object name
 obs.parentJoint = 0                                  # Set object parent = 0 = universe
-obs.placement = se3.SE3(rotate('x', .1) * rotate('y', .1) * rotate('z', .1), np.matrix([.1, .1, .1]).T)  # Set object placement wrt parent
+obs.placement = se3.SE3(rotate('x', .1) * rotate('y', .1) * rotate('z', .1), np.array([.1, .1, .1]))  # Set object placement wrt parent
 robot.collision_model.addGeometryObject(obs, robot.model, False) # Add object to collision model
 robot.visual_model.addGeometryObject(obs, robot.model, False)    # Add object to visual model
 # Also create a geometric object in gepetto viewer, with according name.

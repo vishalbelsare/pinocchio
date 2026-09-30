@@ -5,35 +5,27 @@
 # --- MACROS ------------------------------------------------------------------
 # --- MACROS ------------------------------------------------------------------
 # --- MACROS ------------------------------------------------------------------
-MACRO(ADD_UTIL NAME UTIL_SRC)
+macro(ADD_UTIL NAME UTIL_SRC)
+    if(BUILD_UTILS)
+        add_executable(${NAME} "${UTIL_SRC}.cpp")
+    else(BUILD_UTILS)
+        add_executable(${NAME} EXCLUDE_FROM_ALL "${UTIL_SRC}.cpp")
+    endif(BUILD_UTILS)
 
-  IF(BUILD_UTILS)
-    ADD_EXECUTABLE(${NAME} ${UTIL_SRC})
-  ELSE(BUILD_UTILS)
-    ADD_EXECUTABLE(${NAME} EXCLUDE_FROM_ALL ${UTIL_SRC})
-  ENDIF(BUILD_UTILS)
+    target_link_libraries(${NAME} PUBLIC ${PROJECT_NAME})
 
-  TARGET_LINK_LIBRARIES(${NAME} PUBLIC ${PROJECT_NAME})
-  IF(BUILD_PYTHON_INTERFACE)
-    TARGET_INCLUDE_DIRECTORIES(${NAME} SYSTEM PUBLIC ${PYTHON_INCLUDE_DIRS}) 
-    TARGET_LINK_BOOST_PYTHON(${NAME} PUBLIC)
-    TARGET_LINK_LIBRARIES(${NAME} PUBLIC ${PYTHON_LIBRARIES})
-  ENDIF(BUILD_PYTHON_INTERFACE)
+    add_dependencies(utils ${NAME})
 
-  ADD_DEPENDENCIES(utils ${NAME})
-
-  IF(BUILD_UTILS)
-    INSTALL(TARGETS ${NAME} DESTINATION bin)
-  ENDIF(BUILD_UTILS) 
-
-ENDMACRO(ADD_UTIL)
+    if(BUILD_UTILS)
+        install(TARGETS ${NAME} DESTINATION bin)
+    endif(BUILD_UTILS)
+endmacro(ADD_UTIL)
 
 # --- RULES -------------------------------------------------------------------
 # --- RULES -------------------------------------------------------------------
 # --- RULES -------------------------------------------------------------------
-ADD_CUSTOM_TARGET(utils)
+add_custom_target(utils)
 
-IF(urdfdom_FOUND)
-  ADD_UTIL(pinocchio_read_model pinocchio_read_model)
-ENDIF(urdfdom_FOUND)
-
+if(urdfdom_FOUND)
+    add_util(pinocchio_read_model pinocchio_read_model)
+endif(urdfdom_FOUND)
